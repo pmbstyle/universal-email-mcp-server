@@ -1,0 +1,62 @@
+services:
+  universal-email-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: universal-email-mcp-server
+    restart: unless-stopped
+    
+    environment:
+      - UNIVERSAL_EMAIL_MCP_LOG_LEVEL=INFO
+    
+    ports:
+      - "8000:8000"
+    
+    volumes:
+      - email_mcp_config:/home/mcpuser/.config/universal_email_mcp
+      # Optional: Mount custom config file
+      # - ./config.toml:/home/mcpuser/.config/universal_email_mcp/config.toml:ro
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import universal_email_mcp; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+    
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  universal-email-mcp-stdio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: universal-email-mcp-stdio
+    restart: "no"
+    
+    command: ["python", "-m", "universal_email_mcp.stdio_main"]
+    
+    volumes:
+      - email_mcp_config:/home/mcpuser/.config/universal_email_mcp
+    
+    stdin_open: true
+    tty: true
+    
+    profiles:
+      - debug
+
+volumes:
+  email_mcp_config:
+    driver: local
