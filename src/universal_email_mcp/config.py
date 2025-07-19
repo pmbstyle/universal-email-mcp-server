@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
 
 import tomli
 import tomli_w
@@ -15,7 +14,7 @@ CONFIG_PATH = Path("~/.config/universal_email_mcp/config.toml").expanduser()
 
 class EmailServer(BaseModel):
     """Email server configuration for IMAP or SMTP."""
-    
+
     user_name: str
     password: str
     host: str
@@ -26,7 +25,7 @@ class EmailServer(BaseModel):
 
 class EmailSettings(BaseModel):
     """Complete email account configuration."""
-    
+
     account_name: str = Field(..., description="A unique name for this account.")
     full_name: str
     email_address: str
@@ -36,24 +35,24 @@ class EmailSettings(BaseModel):
 
 class Settings(BaseSettings):
     """Application settings loaded from config file."""
-    
+
     model_config = SettingsConfigDict(
         toml_file=CONFIG_PATH,
         env_prefix="UNIVERSAL_EMAIL_MCP_",
         case_sensitive=False,
     )
-    
-    accounts: List[EmailSettings] = Field(default_factory=list)
+
+    accounts: list[EmailSettings] = Field(default_factory=list)
 
     def store(self) -> None:
         """Store settings to the configuration file."""
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         data = {"accounts": [acc.model_dump() for acc in self.accounts]}
-        
+
         with open(CONFIG_PATH, "wb") as f:
             tomli_w.dump(data, f)
 
-    def get_account(self, account_name: str) -> Optional[EmailSettings]:
+    def get_account(self, account_name: str) -> EmailSettings | None:
         """Get account settings by name."""
         for account in self.accounts:
             if account.account_name == account_name:
@@ -72,13 +71,13 @@ class Settings(BaseSettings):
         return len(self.accounts) < initial_count
 
 
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings(reload: bool = False) -> Settings:
     """Get the global settings instance."""
     global _settings
-    
+
     if _settings is None or reload:
         try:
             if CONFIG_PATH.exists():
@@ -89,7 +88,7 @@ def get_settings(reload: bool = False) -> Settings:
                 _settings = Settings()
         except Exception:
             _settings = Settings()
-    
+
     return _settings
 
 

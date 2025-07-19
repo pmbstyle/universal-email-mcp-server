@@ -1,16 +1,14 @@
 """Pydantic models for Universal Email MCP Server tool inputs and outputs."""
 
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
-
 
 # --- Account Management Models ---
 
 class AddAccountInput(BaseModel):
     """Input model for adding a new email account."""
-    
+
     account_name: str = Field(
         description="A unique name for this account, e.g., 'work_email' or 'personal'"
     )
@@ -32,13 +30,13 @@ class AddAccountInput(BaseModel):
 
 class ListAccountsOutput(BaseModel):
     """Output model for listing configured accounts."""
-    
-    accounts: List[str] = Field(description="List of configured account names")
+
+    accounts: list[str] = Field(description="List of configured account names")
 
 
 class RemoveAccountInput(BaseModel):
     """Input model for removing an email account."""
-    
+
     account_name: str = Field(description="Name of the account to remove")
 
 
@@ -46,7 +44,7 @@ class RemoveAccountInput(BaseModel):
 
 class EmailMessage(BaseModel):
     """Represents an email message."""
-    
+
     uid: str = Field(description="Unique identifier for the email")
     subject: str = Field(description="Email subject")
     sender: str = Field(description="Sender email address")
@@ -58,23 +56,23 @@ class EmailMessage(BaseModel):
 
 class ListMessagesInput(BaseModel):
     """Input model for listing email messages."""
-    
+
     account_name: str = Field(description="Name of the account to list messages from")
     mailbox: str = Field(default="INBOX", description="Mailbox to list messages from")
     page: int = Field(default=1, ge=1, description="Page number for pagination")
     page_size: int = Field(
         default=10, ge=1, le=100, description="Number of messages per page"
     )
-    subject_filter: Optional[str] = Field(
+    subject_filter: str | None = Field(
         default=None, description="Filter messages by subject (partial match)"
     )
-    sender_filter: Optional[str] = Field(
+    sender_filter: str | None = Field(
         default=None, description="Filter messages by sender email"
     )
-    since: Optional[datetime] = Field(
+    since: datetime | None = Field(
         default=None, description="Only show messages since this date"
     )
-    before: Optional[datetime] = Field(
+    before: datetime | None = Field(
         default=None, description="Only show messages before this date"
     )
     unread_only: bool = Field(
@@ -84,26 +82,26 @@ class ListMessagesInput(BaseModel):
 
 class ListMessagesOutput(BaseModel):
     """Output model for listing email messages."""
-    
+
     account_name: str = Field(description="Account name used for the query")
     mailbox: str = Field(description="Mailbox that was queried")
     page: int = Field(description="Current page number")
     page_size: int = Field(description="Number of messages per page")
     total_messages: int = Field(description="Total number of messages matching filters")
-    messages: List[EmailMessage] = Field(description="List of email messages")
+    messages: list[EmailMessage] = Field(description="List of email messages")
 
 
 class SendMessageInput(BaseModel):
     """Input model for sending an email message."""
-    
+
     account_name: str = Field(description="Name of the account to send from")
-    recipients: List[str] = Field(description="List of recipient email addresses")
+    recipients: list[str] = Field(description="List of recipient email addresses")
     subject: str = Field(description="Email subject")
     body: str = Field(description="Email body content")
-    cc: Optional[List[str]] = Field(
+    cc: list[str] | None = Field(
         default=None, description="List of CC recipient email addresses"
     )
-    bcc: Optional[List[str]] = Field(
+    bcc: list[str] | None = Field(
         default=None, description="List of BCC recipient email addresses"
     )
     is_html: bool = Field(
@@ -113,7 +111,7 @@ class SendMessageInput(BaseModel):
 
 class GetMessageInput(BaseModel):
     """Input model for getting a specific email message."""
-    
+
     account_name: str = Field(description="Name of the account")
     message_uid: str = Field(description="Unique identifier of the message")
     mailbox: str = Field(default="INBOX", description="Mailbox containing the message")
@@ -124,13 +122,13 @@ class GetMessageInput(BaseModel):
 
 class GetMessageOutput(BaseModel):
     """Output model for getting a specific email message."""
-    
+
     message: EmailMessage = Field(description="The requested email message")
 
 
 class MarkMessageInput(BaseModel):
     """Input model for marking a message as read/unread."""
-    
+
     account_name: str = Field(description="Name of the account")
     message_uid: str = Field(description="Unique identifier of the message")
     mailbox: str = Field(default="INBOX", description="Mailbox containing the message")
@@ -139,31 +137,31 @@ class MarkMessageInput(BaseModel):
 
 class ListMailboxesInput(BaseModel):
     """Input model for listing mailboxes/folders."""
-    
+
     account_name: str = Field(description="Name of the account")
 
 
 class ListMailboxesOutput(BaseModel):
     """Output model for listing mailboxes/folders."""
-    
+
     account_name: str = Field(description="Account name used for the query")
-    mailboxes: List[str] = Field(description="List of available mailbox names")
+    mailboxes: list[str] = Field(description="List of available mailbox names")
 
 
 # --- Common Output Models ---
 
 class StatusOutput(BaseModel):
     """Generic status output model."""
-    
+
     status: str = Field(description="Status message indicating success or failure")
-    details: Optional[str] = Field(
+    details: str | None = Field(
         default=None, description="Additional details about the operation"
     )
 
 
 class ErrorOutput(BaseModel):
     """Error output model."""
-    
+
     error: str = Field(description="Error message")
     error_type: str = Field(description="Type of error that occurred")
-    details: Optional[str] = Field(default=None, description="Additional error details")
+    details: str | None = Field(default=None, description="Additional error details")

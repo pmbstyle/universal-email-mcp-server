@@ -7,7 +7,7 @@ async def add_account(data: models.AddAccountInput) -> models.StatusOutput:
     """Add a new email account configuration."""
     try:
         settings = config.get_settings(reload=True)
-        
+
         if settings.get_account(data.account_name):
             return models.StatusOutput(
                 status="error",
@@ -35,15 +35,15 @@ async def add_account(data: models.AddAccountInput) -> models.StatusOutput:
                 verify_ssl=data.smtp_verify_ssl
             )
         )
-        
+
         settings.add_account(new_account)
         settings.store()
-        
+
         return models.StatusOutput(
             status="success",
             details=f"Account '{data.account_name}' added successfully."
         )
-        
+
     except Exception as e:
         return models.StatusOutput(
             status="error",
@@ -65,13 +65,13 @@ async def remove_account(data: models.RemoveAccountInput) -> models.StatusOutput
     """Remove an email account configuration."""
     try:
         settings = config.get_settings(reload=True)
-        
+
         if not settings.get_account(data.account_name):
             return models.StatusOutput(
                 status="error",
                 details=f"Account '{data.account_name}' not found."
             )
-        
+
         removed = settings.remove_account(data.account_name)
         if removed:
             settings.store()
@@ -84,7 +84,7 @@ async def remove_account(data: models.RemoveAccountInput) -> models.StatusOutput
                 status="error",
                 details=f"Failed to remove account '{data.account_name}'."
             )
-            
+
     except Exception as e:
         return models.StatusOutput(
             status="error",

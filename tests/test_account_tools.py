@@ -1,9 +1,10 @@
 """Tests for account management tools."""
 
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+import pytest
 
 from universal_email_mcp import config, models
 from universal_email_mcp.tools import account
@@ -14,9 +15,9 @@ def temp_config_file():
     """Create a temporary config file for testing."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.toml', delete=False) as f:
         temp_path = Path(f.name)
-    
+
     yield temp_path
-    
+
     # Clean up
     if temp_path.exists():
         temp_path.unlink()
@@ -52,12 +53,12 @@ async def test_add_account_success(clean_settings):
         imap_host="imap.example.com",
         smtp_host="smtp.example.com"
     )
-    
+
     result = await account.add_account(input_data)
-    
+
     assert result.status == "success"
     assert "test_account" in result.details
-    
+
     # Verify account was actually added
     assert len(clean_settings.accounts) == 1
     assert clean_settings.accounts[0].account_name == "test_account"
@@ -76,13 +77,13 @@ async def test_add_account_duplicate(clean_settings):
         imap_host="imap.example.com",
         smtp_host="smtp.example.com"
     )
-    
+
     # Add account first time
     await account.add_account(input_data)
-    
+
     # Try to add same account again
     result = await account.add_account(input_data)
-    
+
     assert result.status == "error"
     assert "already exists" in result.details
 
@@ -93,9 +94,9 @@ async def test_list_accounts_empty():
     with patch('universal_email_mcp.tools.account.config.get_settings') as mock_get_settings:
         mock_settings = config.Settings()
         mock_get_settings.return_value = mock_settings
-        
+
         result = await account.list_accounts()
-        
+
         assert isinstance(result, models.ListAccountsOutput)
         assert result.accounts == []
 
@@ -113,7 +114,7 @@ async def test_list_accounts_with_data(clean_settings):
         imap_host="imap.example.com",
         smtp_host="smtp.example.com"
     )
-    
+
     input_data2 = models.AddAccountInput(
         account_name="account2",
         full_name="User Two",
@@ -123,12 +124,12 @@ async def test_list_accounts_with_data(clean_settings):
         imap_host="imap.example.com",
         smtp_host="smtp.example.com"
     )
-    
+
     await account.add_account(input_data1)
     await account.add_account(input_data2)
-    
+
     result = await account.list_accounts()
-    
+
     assert len(result.accounts) == 2
     assert "account1" in result.accounts
     assert "account2" in result.accounts
@@ -147,16 +148,16 @@ async def test_remove_account_success(clean_settings):
         imap_host="imap.example.com",
         smtp_host="smtp.example.com"
     )
-    
+
     await account.add_account(input_data)
-    
+
     # Now remove it
     remove_data = models.RemoveAccountInput(account_name="test_account")
     result = await account.remove_account(remove_data)
-    
+
     assert result.status == "success"
     assert "removed successfully" in result.details
-    
+
     # Verify account was actually removed
     assert len(clean_settings.accounts) == 0
 
@@ -167,10 +168,10 @@ async def test_remove_account_not_found():
     with patch('universal_email_mcp.tools.account.config.get_settings') as mock_get_settings:
         mock_settings = config.Settings()
         mock_get_settings.return_value = mock_settings
-        
+
         remove_data = models.RemoveAccountInput(account_name="nonexistent")
         result = await account.remove_account(remove_data)
-        
+
         assert result.status == "error"
         assert "not found" in result.details
 
@@ -188,12 +189,12 @@ async def test_get_account_settings_success(clean_settings):
         imap_host="imap.example.com",
         smtp_host="smtp.example.com"
     )
-    
+
     await account.add_account(input_data)
-    
+
     # Get account settings
     settings = account.get_account_settings("test_account")
-    
+
     assert settings.account_name == "test_account"
     assert settings.email_address == "test@example.com"
     assert settings.incoming.host == "imap.example.com"
@@ -206,7 +207,7 @@ async def test_get_account_settings_not_found():
     with patch('universal_email_mcp.tools.account.config.get_settings') as mock_get_settings:
         mock_settings = config.Settings()
         mock_get_settings.return_value = mock_settings
-        
+
         with pytest.raises(ValueError, match="Account 'nonexistent' not found"):
             account.get_account_settings("nonexistent")
 
@@ -227,10 +228,10 @@ async def test_account_with_custom_ports(clean_settings):
         smtp_port=587,
         smtp_use_ssl=False
     )
-    
+
     result = await account.add_account(input_data)
     assert result.status == "success"
-    
+
     settings = account.get_account_settings("custom_ports")
     assert settings.incoming.port == 143
     assert settings.incoming.use_ssl is False

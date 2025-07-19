@@ -22,14 +22,14 @@ def parse_args() -> argparse.Namespace:
         default=8000,
         help="Port to bind the server to (default: 8000)"
     )
-    
+
     return parser.parse_args()
 
 
 async def main():
     """Main entry point for HTTP/SSE transport."""
     args = parse_args()
-    
+
     try:
         server = create_server()
         await server.run_sse(host=args.host, port=args.port)
