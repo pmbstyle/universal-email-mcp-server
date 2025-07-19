@@ -1,11 +1,13 @@
-"""Email operation tools for Universal Email MCP Server."""
 
+import asyncio
 import email
 import email.message
+import logging
 import ssl
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Optional
 
 import aioimaplib
 import aiosmtplib
@@ -13,14 +15,15 @@ import aiosmtplib
 from .. import config, models
 from .account import get_account_settings
 
+logger = logging.getLogger(__name__)
+
 
 class EmailClient:
-    """Async email client for IMAP and SMTP operations."""
 
     def __init__(self, account_settings: config.EmailSettings):
         self.account_settings = account_settings
-        self._imap_client = None
-        self._smtp_client = None
+        self._imap_client: Optional[aioimaplib.IMAP4_SSL] = None
+        self._smtp_client: Optional[aiosmtplib.SMTP] = None
 
     async def __aenter__(self):
         return self
@@ -50,10 +53,19 @@ class EmailClient:
             incoming = self.account_settings.incoming
 
             ssl_context = None
-            if incoming.use_ssl and not incoming.verify_ssl:
+            if incoming.use_ssl:
                 ssl_context = ssl.create_default_context()
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
+                if not incoming.verify_ssl:
+                    import warnings
+                    warnings.warn(
+                        f"SSL verification disabled for {incoming.host}. "
+                        "This is insecure and should only be used for testing.",
+                        category=UserWarning,
+                        stacklevel=2
+                    )
+                    ssl_context = ssl.create_default_context()
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
 
             if incoming.use_ssl:
                 self._imap_client = aioimaplib.IMAP4_SSL(
@@ -78,7 +90,15 @@ class EmailClient:
             outgoing = self.account_settings.outgoing
 
             ssl_context = None
-            if outgoing.use_ssl and not outgoing.verify_ssl:
+            ssl_context = ssl.create_default_context()
+            if not outgoing.verify_ssl:
+                import warnings
+                warnings.warn(
+                    f"SSL verification disabled for {outgoing.host}. "
+                    "This is insecure and should only be used for testing.",
+                    category=UserWarning,
+                    stacklevel=2
+                )
                 ssl_context = ssl.create_default_context()
                 ssl_context.check_hostname = False
                 ssl_context.verify_mode = ssl.CERT_NONE
@@ -90,14 +110,10 @@ class EmailClient:
 
             if outgoing.use_ssl:
                 smtp_kwargs["use_tls"] = True
-                if ssl_context:
-                    smtp_kwargs["tls_context"] = ssl_context
+                smtp_kwargs["tls_context"] = ssl_context
             else:
                 smtp_kwargs["use_tls"] = False
-                smtp_kwargs["start_tls"] = False
-                ssl_context = ssl.create_default_context()
-                ssl_context.check_hostname = False
-                ssl_context.verify_mode = ssl.CERT_NONE
+                smtp_kwargs["start_tls"] = True
                 smtp_kwargs["tls_context"] = ssl_context
 
             self._smtp_client = aiosmtplib.SMTP(**smtp_kwargs)
@@ -252,7 +268,8 @@ class EmailClient:
                 has_attachments=has_attachments
             )
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error parsing message: {e}")
             return None
 
     async def get_message_by_uid(self, uid: str, mailbox: str = "INBOX") -> models.EmailMessage | None:
@@ -264,8 +281,8 @@ class EmailClient:
             fetch_response = await imap.fetch(uid, "(UID RFC822.HEADER RFC822.TEXT FLAGS)")
             if fetch_response.result == "OK":
                 return self._parse_message(fetch_response.lines, uid)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Error getting message by UID: {e}")
 
         return None
 
@@ -316,7 +333,6 @@ async def list_messages(data: models.ListMessagesInput) -> models.ListMessagesOu
     """List email messages from specified account."""
     try:
         account_settings = get_account_settings(data.account_name)
-
         async with EmailClient(account_settings) as client:
             messages, total = await client.get_messages(
                 mailbox=data.mailbox,
@@ -338,7 +354,8 @@ async def list_messages(data: models.ListMessagesInput) -> models.ListMessagesOu
                 messages=messages
             )
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error listing messages: {e}")
         return models.ListMessagesOutput(
             account_name=data.account_name,
             mailbox=data.mailbox,
@@ -370,6 +387,7 @@ async def send_message(data: models.SendMessageInput) -> models.StatusOutput:
             )
 
     except Exception as e:
+        logger.error(f"Error sending message: {e}")
         return models.StatusOutput(
             status="error",
             details=f"Failed to send email: {str(e)}"
@@ -394,6 +412,7 @@ async def get_message(data: models.GetMessageInput) -> models.GetMessageOutput:
             return models.GetMessageOutput(message=message)
 
     except Exception as e:
+        logger.error(f"Error getting message: {e}")
         raise ValueError(f"Failed to get message: {str(e)}")
 
 
@@ -412,6 +431,7 @@ async def mark_message(data: models.MarkMessageInput) -> models.StatusOutput:
             )
 
     except Exception as e:
+        logger.error(f"Error marking message: {e}")
         return models.StatusOutput(
             status="error",
             details=f"Failed to mark message: {str(e)}"
@@ -431,7 +451,8 @@ async def list_mailboxes(data: models.ListMailboxesInput) -> models.ListMailboxe
                 mailboxes=mailboxes
             )
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error listing mailboxes: {e}")
         return models.ListMailboxesOutput(
             account_name=data.account_name,
             mailboxes=[]

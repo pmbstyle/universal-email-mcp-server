@@ -1,5 +1,5 @@
-"""Universal Email MCP Server implementation."""
 
+import logging
 from typing import Any
 
 from mcp.server import Server
@@ -8,16 +8,21 @@ from mcp.types import Tool
 from . import models
 from .tools import account, mail
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger("universal-email-mcp")
+
 
 class UniversalEmailServer:
-    """Universal Email MCP Server for connecting to any IMAP/SMTP email provider."""
 
     def __init__(self):
         self.server = Server("universal-email-mcp")
         self._setup_handlers()
 
     def _setup_handlers(self):
-        """Set up MCP tool handlers."""
 
         @self.server.list_tools()
         async def handle_list_tools() -> list[Tool]:
@@ -288,14 +293,26 @@ class UniversalEmailServer:
             if arguments is None:
                 arguments = {}
 
+            request_id = id(arguments)
+            start_time = logging.Formatter().formatTime(logging.LogRecord(
+                name="universal-email-mcp", level=logging.INFO, pathname="", lineno=0,
+                msg="", args=(), exc_info=None
+            ))
+
             try:
+                logger.info(f"[{request_id}] Executing tool: {name} with arguments: {list(arguments.keys())}")
+
                 if name == "add_account":
                     input_data = models.AddAccountInput(**arguments)
+                    logger.info(f"[{request_id}] Adding account: {input_data.account_name}")
                     result = await account.add_account(input_data)
+                    logger.info(f"[{request_id}] Account added: {result.status}")
                     return [{"type": "text", "text": f"Status: {result.status}\nDetails: {result.details}"}]
 
                 elif name == "list_accounts":
+                    logger.info(f"[{request_id}] Listing accounts")
                     result = await account.list_accounts()
+                    logger.info(f"[{request_id}] Found {len(result.accounts)} accounts")
                     if result.accounts:
                         account_list = "\n".join(f"- {acc}" for acc in result.accounts)
                         return [{"type": "text", "text": f"Configured accounts:\n{account_list}"}]
@@ -304,12 +321,16 @@ class UniversalEmailServer:
 
                 elif name == "remove_account":
                     input_data = models.RemoveAccountInput(**arguments)
+                    logger.info(f"[{request_id}] Removing account: {input_data.account_name}")
                     result = await account.remove_account(input_data)
+                    logger.info(f"[{request_id}] Account removal: {result.status}")
                     return [{"type": "text", "text": f"Status: {result.status}\nDetails: {result.details}"}]
 
                 elif name == "list_messages":
                     input_data = models.ListMessagesInput(**arguments)
+                    logger.info(f"[{request_id}] Listing messages from {input_data.account_name}")
                     result = await mail.list_messages(input_data)
+                    logger.info(f"[{request_id}] Found {result.total_messages} messages")
 
                     if result.messages:
                         message_list = []
@@ -332,17 +353,21 @@ class UniversalEmailServer:
 
                 elif name == "send_message":
                     input_data = models.SendMessageInput(**arguments)
+                    logger.info(f"[{request_id}] Sending message to {len(input_data.recipients)} recipients")
                     result = await mail.send_message(input_data)
+                    logger.info(f"[{request_id}] Send result: {result.status}")
                     return [{"type": "text", "text": f"Status: {result.status}\nDetails: {result.details}"}]
 
                 elif name == "get_message":
                     input_data = models.GetMessageInput(**arguments)
+                    logger.info(f"[{request_id}] Getting message UID {input_data.message_uid}")
                     result = await mail.get_message(input_data)
 
                     msg = result.message
                     status = "✉️ (Unread)" if not msg.is_read else "📧 (Read)"
                     attachment = " 📎 Has attachments" if msg.has_attachments else ""
 
+                    logger.info(f"[{request_id}] Message retrieved: {msg.subject}")
                     return [{"type": "text", "text":
                             f"{status}{attachment}\n\n"
                             f"Subject: {msg.subject}\n"
@@ -353,12 +378,16 @@ class UniversalEmailServer:
 
                 elif name == "mark_message":
                     input_data = models.MarkMessageInput(**arguments)
+                    logger.info(f"[{request_id}] Marking message UID {input_data.message_uid} as {input_data.mark_as_read}")
                     result = await mail.mark_message(input_data)
+                    logger.info(f"[{request_id}] Mark result: {result.status}")
                     return [{"type": "text", "text": f"Status: {result.status}\nDetails: {result.details}"}]
 
                 elif name == "list_mailboxes":
                     input_data = models.ListMailboxesInput(**arguments)
+                    logger.info(f"[{request_id}] Listing mailboxes for {input_data.account_name}")
                     result = await mail.list_mailboxes(input_data)
+                    logger.info(f"[{request_id}] Found {len(result.mailboxes)} mailboxes")
 
                     if result.mailboxes:
                         mailbox_list = "\n".join(f"- {mb}" for mb in result.mailboxes)
@@ -367,12 +396,18 @@ class UniversalEmailServer:
                         return [{"type": "text", "text": f"No mailboxes found for {result.account_name}."}]
 
                 else:
+                    logger.warning(f"[{request_id}] Unknown tool requested: {name}")
                     return [{"type": "text", "text": f"Unknown tool: {name}"}]
 
             except ValueError as e:
+                logger.error(f"[{request_id}] ValueError: {str(e)}")
                 return [{"type": "text", "text": f"Error: {str(e)}"}]
             except Exception as e:
+                logger.error(f"[{request_id}] Unexpected error: {type(e).__name__}: {str(e)}", exc_info=True)
                 return [{"type": "text", "text": f"Unexpected error: {str(e)}"}]
+
+            finally:
+                logger.info(f"[{request_id}] Tool execution completed: {name}")
 
     async def run_stdio(self):
         """Run server with STDIO transport."""

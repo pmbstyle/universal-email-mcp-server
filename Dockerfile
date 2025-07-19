@@ -19,6 +19,8 @@ RUN pip install --no-cache-dir \
     aiosmtplib>=4.0.0 \
     pydantic-settings[toml]>=2.8.0 \
     tomli-w>=1.2.0 \
+    cryptography>=42.0.0 \
+    keyring>=25.0.0 \
     loguru>=0.7.3
 
 COPY src/ ./src/
