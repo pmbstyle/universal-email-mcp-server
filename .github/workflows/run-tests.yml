@@ -35,6 +35,9 @@ jobs:
         path: .venv
         key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
+    - name: Update poetry lock file
+      run: poetry lock --no-update
+      
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: poetry install --no-interaction --no-root
@@ -77,6 +80,9 @@ jobs:
         path: .venv
         key: venv-${{ runner.os }}-3.12-${{ hashFiles('**/poetry.lock') }}
 
+    - name: Update poetry lock file
+      run: poetry lock --no-update
+      
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: poetry install --no-interaction --no-root
