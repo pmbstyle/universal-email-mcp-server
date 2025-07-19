@@ -37,6 +37,7 @@ ruff = "^0.6.0"
 
 [tool.poetry.scripts]
 universal-email-mcp = "universal_email_mcp.stdio_main:main"
+universal-email-cli = "universal_email_mcp.cli:cli_main"
 
 [tool.black]
 line-length = 88

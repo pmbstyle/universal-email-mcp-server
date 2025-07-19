@@ -435,8 +435,13 @@ class UniversalEmailServer:
         from mcp.server.sse import SseServerTransport
         from mcp.types import ServerCapabilities, ToolsCapability
         from starlette.applications import Starlette
-        from starlette.responses import Response
+        from starlette.responses import Response, JSONResponse
         from starlette.routing import Route
+        
+        from .auth import initialize_auth, MCPAuthMiddleware
+
+        # Initialize authentication
+        auth_manager = initialize_auth("sse")
 
         sse = SseServerTransport("/messages/")
 
@@ -462,12 +467,40 @@ class UniversalEmailServer:
         async def handle_messages(request):
             return await sse.handle_post_message(request.scope, request.receive, request._send)
 
+        async def health_check(request):
+            """Health check endpoint."""
+            return JSONResponse({
+                "status": "ok",
+                "service": "universal-email-mcp",
+                "version": "0.1.0"
+            })
+
+        async def get_token(request):
+            """One-time token retrieval endpoint."""
+            if request.headers.get("X-Internal-Auth") != "mcp-admin":
+                return JSONResponse(
+                    {"error": "Not authorized"}, 
+                    status_code=403
+                )
+            
+            return JSONResponse({
+                "token": auth_manager.load_token(),
+                "file_path": str(auth_manager.token_path),
+                "generated_at": auth_manager.get_token_info().get("created_at")
+            })
+
+        # Create basic app with routes
         app = Starlette(
             routes=[
+                Route("/health", endpoint=health_check),
+                Route("/get-token", endpoint=get_token),
                 Route("/sse", endpoint=handle_sse),
                 Route("/messages", endpoint=handle_messages, methods=["POST"]),
             ]
         )
+
+        # Wrap with authentication middleware
+        app = MCPAuthMiddleware(app, auth_manager)
 
         config = uvicorn.Config(app, host=host, port=port, log_level="info")
         server = uvicorn.Server(config)

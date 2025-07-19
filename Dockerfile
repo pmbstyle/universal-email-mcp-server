@@ -30,13 +30,23 @@ RUN chown -R mcpuser:mcpuser /app
 RUN mkdir -p /home/mcpuser/.config/universal_email_mcp && \
     chown -R mcpuser:mcpuser /home/mcpuser/.config
 
-USER mcpuser
-
 ENV PYTHONPATH="/app/src" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
+# Create data directory for token persistence (as root)
+RUN mkdir -p /data && \
+    chown -R mcpuser:mcpuser /data && \
+    chmod 755 /data
+
+USER mcpuser
+
 EXPOSE 8000
+
+# Environment variables for auth
+ENV TOKEN_DATA_DIR="/data" \
+    DOCKER_DEPLOYMENT="true" \
+    AUTH_TOKEN=""
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import universal_email_mcp; print('OK')" || exit 1

@@ -1,0 +1,36 @@
+# Development docker-compose with auth setup
+version: '3.8'
+
+services:
+  email-mcp-dev:
+    build: .
+    container_name: email-mcp-dev
+    restart: unless-stopped
+    
+    environment:
+      - TOKEN_DATA_DIR=/data
+      - DOCKER_DEPLOYMENT=true
+      # No AUTH_TOKEN set - auto-generate for each container
+    
+    ports:
+      - "8000:8000"
+    
+    volumes:
+      # Persistent token storage for development
+      - ./dev-data:/data:rw
+      - ./src:/app/src:ro  # Mount source for hot-reloading
+    
+    # Run with CLI to show token info on startup
+    command: >
+      sh -c "
+      echo '🔐 MCP Email Server Auth Setup' &&
+      echo '--------------------------------' &&
+      python -c '
+      from src.universal_email_mcp.auth import AuthTokenManager;
+      tm = AuthTokenManager(\"/data\");
+      token = tm.get_or_create_token(\"development-docker\");
+      print(f\"🔑 Token: {token}\");
+      print(f\"📁 Token file: {tm.token_path}\");
+      ' &&
+      python -m universal_email_mcp.http_main --host 0.0.0.0 --port 8000
+      "

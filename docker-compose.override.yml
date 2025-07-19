@@ -1,0 +1,24 @@
+# Docker Compose override for local development with auth
+version: '3.8'
+
+services:
+  universal-email-mcp:
+    environment:
+      - DOCKER_DEPLOYMENT=true
+      - TOKEN_DATA_DIR=/data
+      # Uncomment to use custom token:
+      # - AUTH_TOKEN=your-custom-token-here
+    
+    volumes:
+      # For local development - mount ./data for easy token access
+      - ./data:/data:rw
+      - ~/.claude-email-mcp:/data:rw  # For Claude Desktop integration
+    
+    ports:
+      - "8000:8000"
+    
+    command: >
+      sh -c "
+      python -c 'from src.universal_email_mcp.cli import *; import time; time.sleep(1)'
+      && python -m universal_email_mcp.http_main --host 0.0.0.0 --port 8000
+      "

@@ -14,6 +14,7 @@ services:
     
     volumes:
       - email_mcp_config:/home/mcpuser/.config/universal_email_mcp
+      - email_mcp_tokens:/data  # Token persistence for auth
       # Optional: Mount custom config file
       # - ./config.toml:/home/mcpuser/.config/universal_email_mcp/config.toml:ro
     
@@ -59,4 +60,6 @@ services:
 
 volumes:
   email_mcp_config:
+    driver: local
+  email_mcp_tokens:
     driver: local
